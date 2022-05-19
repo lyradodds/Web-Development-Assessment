@@ -1,0 +1,23 @@
+
+Sequencer is a grid of colored squares with names of notes written on them (C#3, E4 etc.). Each color corresponds to a different instrument.
+The melody is drawn using a "paint" tool, where an instrument is picked and a note and octave are selected from dropdown menus.
+Clicking on a square will set it to those values.
+
+A "cursor" that shows the note currently being played appears as an outline around each square.
+The size and height of the grid and tempo of the melody can be changed with number selection boxes (the ones with arrows).
+
+Melodies can be sampled, so a grid setup can be saved and played separately to the grid currently being edited.
+Samples are displayed in a list, and each has a play/pause button, and an "import" button that overwrites the current grid with that sample.
+{Maybe capture an image of the grid for each sample, so they can be visually identified.}
+
+{A completed grid can be exported as an audio file.}
+
+---
+
+Maybe instead of colored squares and note names, have shapes correspond to samples, and notes correspond to colors. This is more intuitive and looks nicer. Would be good to have a text-free interface.
+
+Instead of the notes just being a line of colors along the spectrum, each note is a different hue, and the lightness of the color represents the octave. Very dark red is a deep C, slightly lighter red for C in the next octave, and so on.
+
+CDEFGAB -> red orange yellow green blue indigo violet
+
+Sharp notes can be represented with a little icon, like a white circle/hole in the middle of the shape.
