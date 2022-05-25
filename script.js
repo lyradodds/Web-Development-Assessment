@@ -3,14 +3,21 @@ const ctx = canvas.getContext("2d");
 
 var gridHeight = 7
 var gridWidth = 7
-var tempo = 30
+var tempo = 100
 
-const noteSize = 12;
-const noteGap = 3;
+var cursorPosition = 0;
+
+const noteSize = 36;
+const noteGap = 9;
+const cursorGap = 5;
 const bgColor = [255,255,255];
 
 // array of rows
 var grid = []
+
+function sleep(ms) {
+	return new Promise(resolve => {setTimeout(resolve,ms)}); 
+}
 
 function getSound(y, x) {
 	return grid[y][x]
@@ -33,6 +40,14 @@ function addGridColumns(n) {
 			grid[y].push(null);
 		}
 	}
+}
+
+function removeGridRows(n) {
+	gridHeight -= n;
+}
+
+function removeGridColumns(n) {
+	gridWidth -= n;
 }
 
 function noteToColor(sound) {
@@ -70,30 +85,46 @@ function drawSequencer() {
 		for (let x=0; x < gridWidth; x++) {
 			drawX = x * noteSize + (x+1) * noteGap;
 			sound = getSound(y, x);
-			ctx.fillStyle = rgbToCSSColor(noteToColor(sound));
+
+			ctx.fillStyle = rgbToCSSColor(noteToColor(sound)); // get note color
+
 			drawShape(drawY, drawX, sound.sample);
-			if (sound.sharp) {
+
+			if (sound.sharp) { // draw a white circle in the middle if the note is sharp
 				ctx.fillStyle = rgbToCSSColor(bgColor);
-				ctx.beginPath();
-				ctx.arc(drawX+noteSize/2, drawY+noteSize/2, noteSize/6, 0, Math.PI*2);
-				ctx.fill();
+				drawShape(drawY+noteSize/2, drawX+noteSize/2, "circle-small");
 			}
 		}
 	}
+	drawCursor();
 }
 
 function makeSampleNotes() {
 	gridHeight = 7; gridWidth = 7;
 	for (let y=0; y<7; y++) {
 		for (let x=0; x<7; x++) {
-			setSound(y, x, {note: intToNote(x), sharp: Math.random()>0.5, octave: y+1, sample: ["snare","chime"][Math.floor(Math.random()*2)]});
+			setSound(y, x, {note: intToNote(x), sharp: Math.random()>0.5, octave: y+1, sample: ["snare","chime","horn"][Math.floor(Math.random()*3)]});
 		}
 	}
 }
 
-function drawShape(y, x, sample) {
-	switch (sample) {
-		case "chime": // pentagon
+function drawShape(y, x, shape) {
+	switch (shape) {
+		case "square-outline":
+			ctx.beginPath();
+			ctx.moveTo(x-cursorGap			, 	y-cursorGap				);
+			ctx.lineTo(x+cursorGap+noteSize	, 	y-cursorGap				);
+			ctx.lineTo(x+cursorGap+noteSize	, 	y+cursorGap+noteSize	);
+			ctx.lineTo(x-cursorGap		 	,  	y+cursorGap+noteSize	);
+			ctx.closePath();
+			ctx.stroke();
+			break;
+		case "circle-small":
+			ctx.beginPath();
+			ctx.arc(x, y, noteSize/6, 0, Math.PI*2);
+			ctx.fill();
+			break;
+		case "pentagon": case "chime":
 			ctx.beginPath(); // drawn clockwise from top
 			ctx.moveTo(x+noteSize/2, 		y				);
 			ctx.lineTo(x+noteSize, 			y+noteSize/4	);
@@ -103,14 +134,62 @@ function drawShape(y, x, sample) {
 			ctx.closePath();
 			ctx.fill();
 			break;
-		case "snare": // rectangle
+		case "square": case "snare":
 			ctx.fillRect(x, y, noteSize, noteSize);
+			break;
+		case "circle": case "horn":
+			ctx.beginPath();
+			ctx.arc(x+noteSize/2, y+noteSize/2, noteSize/2, 0, Math.PI*2);
+			ctx.fill();
 			break;
 	}
 }
 
-addGridRows(gridHeight);
+function advanceCursor() {
+	cursorPosition += 1;
+	if (cursorPosition >= gridHeight*gridWidth) {
+		cursorPosition = 0;
+	}
+}
 
-makeSampleNotes();
+function drawCursor() {
+	let gridX = cursorPosition % gridWidth;
+	let gridY = (cursorPosition - gridX) / gridWidth;
 
-drawSequencer();
+	let drawX = gridX * (noteSize+noteGap) + noteGap;
+	let drawY = gridY * (noteSize+noteGap) + noteGap;
+
+	ctx.fillStyle = "black";
+	drawShape(drawY, drawX, "square-outline");
+}
+
+
+
+function mainLoop(timestamp) {
+	var progress = timestamp - lastRender
+
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	drawSequencer();
+
+	frameCounter += progress;
+	if (frameCounter >= tempo) {
+		frameCounter -= tempo;
+		advanceCursor();
+	}
+
+	lastRender = timestamp;
+	window.requestAnimationFrame(mainLoop);
+}
+
+function setup() {
+	addGridRows(gridHeight); // to initialise grid array
+	makeSampleNotes();
+}
+
+setup();
+
+var lastRender = 0;
+
+var frameCounter = 0;
+
+window.requestAnimationFrame(mainLoop);
