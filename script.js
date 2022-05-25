@@ -1,9 +1,16 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const tempoInput = document.getElementById("tempoInput");
+const gridHeightInput = document.getElementById("gridHeightInput");
+const gridWidthInput = document.getElementById("gridWidthInput");
+
 var gridHeight = 7
 var gridWidth = 7
 var tempo = 100
+
+var gridGreatestHeight;
+var gridGreatestWidth;
 
 var cursorPosition = 0;
 
@@ -29,17 +36,21 @@ function setSound(y, x, sound) {
 }
 
 function addGridRows(n) {
-	for (let i=0; i < n; i++) {
-		grid.push(new Array(gridWidth));
+	while (gridGreatestHeight < gridHeight+n) {
+		grid.push(new Array(grid[0].length));
+		gridGreatestHeight++;
 	}
+	gridHeight += n;
 }
 
 function addGridColumns(n) {
-	for (let y=0; y < gridHeight; i++) {
-		for (let i=0; i < n; i++) {
-			grid[y].push(null);
+	while (gridGreatestWidth < gridWidth+n) {
+		for (let i=0; i < gridHeight; i++) {
+			grid[i].push(undefined);
 		}
+		gridGreatestWidth++;
 	}
+	gridWidth += n;
 }
 
 function removeGridRows(n) {
@@ -77,7 +88,7 @@ function intToNote(n) {
 	return "CDEFGAB"[n];
 }
 
-function drawSequencer() {
+function drawSequencer(baseY, baseX) {
 	let drawY; let drawX;
 	let note;
 	for (let y=0; y < gridHeight; y++) {
@@ -86,17 +97,24 @@ function drawSequencer() {
 			drawX = x * noteSize + (x+1) * noteGap;
 			sound = getSound(y, x);
 
-			ctx.fillStyle = rgbToCSSColor(noteToColor(sound)); // get note color
+			if (sound == undefined) {
+				ctx.fillStyle = "black";
+				drawShape(baseY+drawY+noteSize/2, baseX+drawX+noteSize/2, "circle-small");
+			} else {
+			
+				ctx.fillStyle = rgbToCSSColor(noteToColor(sound)); // get note color
 
-			drawShape(drawY, drawX, sound.sample);
+				drawShape(baseY+drawY, baseX+drawX, sound.sample);
 
-			if (sound.sharp) { // draw a white circle in the middle if the note is sharp
-				ctx.fillStyle = rgbToCSSColor(bgColor);
-				drawShape(drawY+noteSize/2, drawX+noteSize/2, "circle-small");
+				if (sound.sharp) { // draw a white circle in the middle if the note is sharp
+					ctx.fillStyle = rgbToCSSColor(bgColor);
+					drawShape(baseY+drawY+noteSize/2, baseX+drawX+noteSize/2, "circle-small");
+				}
+				
 			}
 		}
 	}
-	drawCursor();
+	drawCursor(baseY, baseX);
 }
 
 function makeSampleNotes() {
@@ -152,7 +170,7 @@ function advanceCursor() {
 	}
 }
 
-function drawCursor() {
+function drawCursor(baseY, baseX) {
 	let gridX = cursorPosition % gridWidth;
 	let gridY = (cursorPosition - gridX) / gridWidth;
 
@@ -160,36 +178,83 @@ function drawCursor() {
 	let drawY = gridY * (noteSize+noteGap) + noteGap;
 
 	ctx.fillStyle = "black";
-	drawShape(drawY, drawX, "square-outline");
+	drawShape(baseY+drawY, baseX+drawX, "square-outline");
 }
 
+function getGridPixelHeight() {
+	return gridHeight*(noteSize+noteGap) + noteGap;
+}
 
+function getGridPixelWidth() {
+	return gridWidth*(noteSize+noteGap) + noteGap;
+}
+
+function getRandomNote() {
+	return {note: "CDEFGAB"[Math.floor(Math.random()*7)], sharp: Math.random()>0.5, octave: Math.floor(Math.random()*7), sample: ["snare","chime","horn"][Math.floor(Math.random()*3)]};
+}
+
+function randomizeGrid() {
+	for (let y=0; y<gridHeight; y++) {
+		for (let x=0; x<gridWidth; x++) {
+			grid[y][x] = getRandomNote();
+		}
+	}
+}
 
 function mainLoop(timestamp) {
+	
 	var progress = timestamp - lastRender
 
 	ctx.clearRect(0,0,canvas.width,canvas.height);
-	drawSequencer();
+	drawSequencer((canvas.height-getGridPixelHeight())/2, (canvas.width-getGridPixelWidth())/2);
+	
+	tempo = tempoInput.value;
+	
+	if (gridHeightInput.value > gridHeight) {
+		addGridRows(gridHeightInput.value - gridHeight);
+	} else if (gridHeightInput.value < gridHeight) {
+		removeGridRows(gridHeight - gridHeightInput.value);
+	}
+	
+	if (gridWidthInput.value > gridWidth) {
+		addGridColumns(gridWidthInput.value - gridWidth);
+	} else if (gridWidthInput.value < gridWidth) {
+		removeGridColumns(gridWidth - gridWidthInput.value);
+	}
 
-	frameCounter += progress;
-	if (frameCounter >= tempo) {
-		frameCounter -= tempo;
+	// tempoCounter counts the number of milliseconds since the last frame
+	// if this is greater than tempo, tempo is subtracted from it and the cursor is advanced, playing the next note.
+	tempoCounter += progress;
+	if (tempoCounter >= tempo) {
+		tempoCounter -= tempo;
 		advanceCursor();
 	}
 
 	lastRender = timestamp;
 	window.requestAnimationFrame(mainLoop);
+	
 }
 
 function setup() {
-	addGridRows(gridHeight); // to initialise grid array
-	makeSampleNotes();
+	
+	// initialise grid array
+	for (let i=0; i<gridHeight; i++) {
+		grid.push(new Array(gridWidth));
+	}
+	
+	gridGreatestHeight = gridHeight;
+	gridGreatestWidth = gridWidth;
+	
+	//makeSampleNotes();
+	
 }
+
+
 
 setup();
 
 var lastRender = 0;
 
-var frameCounter = 0;
+var tempoCounter = 0;
 
 window.requestAnimationFrame(mainLoop);

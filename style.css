@@ -1,5 +1,24 @@
-  canvas {
+canvas {
     display: block;
+	margin-left: auto;
+	margin-right: auto;
     border: 5px solid #222222;
     background-color: white;
+}
+
+input {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+}
+
+label {
+	display: block;
+	text-align: center;
+}
+button {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
 }
