@@ -21,3 +21,7 @@ Instead of the notes just being a line of colors along the spectrum, each note i
 CDEFGAB -> red orange yellow green blue indigo violet
 
 Sharp notes can be represented with a little icon, like a white circle/hole in the middle of the shape.
+
+---
+
+Samples from mixkit.co
