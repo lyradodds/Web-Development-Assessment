@@ -8,14 +8,22 @@ const tempoInput = document.getElementById("tempoInput");
 const gridHeightInput = document.getElementById("gridHeightInput");
 const gridWidthInput = document.getElementById("gridWidthInput");
 
-var gridHeight = 7
-var gridWidth = 7
+const synths = new Map();
+
+const synthBasic = new Tone.PolySynth(Tone.Synth).toDestination();
+const synthAM = new Tone.AMSynth().toDestination();
+const synthMetal = new Tone.MetalSynth().toDestination();
+const synthMembrane = new Tone.MembraneSynth().toDestination();
+const synthDuo = new Tone.DuoSynth().toDestination();
+
+var gridHeight = 3
+var gridWidth = 8
 var tempo = 100
 
 var gridGreatestHeight;
 var gridGreatestWidth;
 
-var paletteNote = {note: 'C', sharp: false, octave: 4, sample: "chime"};
+var paletteNote = {note: 'C', sharp: false, octave: 4, synth: "basic"};
 var selectedPaletteNote = true;
 
 var cursorPosition = 0;
@@ -25,8 +33,6 @@ const noteGap = 9;
 const cursorGap = 5;
 const bgColor = [255,255,255];
 
-var samples = new Map();
-
 // array of rows
 var grid = []
 
@@ -34,15 +40,11 @@ var grid = []
 var sequencerButtons;
 var paletteButtons;
 
-function sleep(ms) {
-	return new Promise(resolve => {setTimeout(resolve,ms)}); 
-}
-
 function getSound(y, x) {
 	return grid[y][x]
 }
 
-// sound example: {note: 'C', sharp: true, octave: 4, sample: "snare"}
+// sound example: {note: 'C', sharp: true, octave: 4, synth: "basic"}
 function setSound(y, x, sound) {
 	grid[y][x] = sound;
 }
@@ -141,8 +143,8 @@ function drawPalette() {
 	for (let i=0; i < 7; i++) {
 		y += noteGap + noteSize;
 		if (i === 0 || i === 1 || i === 3 || i === 4 || i === 5) {
-			drawNote(paletteCtx, y, middle-(noteSize+noteGap)/2, {note: intToNote(i), sharp: false, octave: paletteNote.octave, sample: paletteNote.sample})
-			drawNote(paletteCtx, y, middle+(noteSize+noteGap)/2, {note: intToNote(i), sharp: true, octave: paletteNote.octave, sample: paletteNote.sample})
+			drawNote(paletteCtx, y, middle-(noteSize+noteGap)/2, {note: intToNote(i), sharp: false, octave: paletteNote.octave, synth: paletteNote.synth})
+			drawNote(paletteCtx, y, middle+(noteSize+noteGap)/2, {note: intToNote(i), sharp: true, octave: paletteNote.octave, synth: paletteNote.synth})
 			if (paletteNote.note === intToNote(i)) {
 				if (paletteNote.sharp) {
 					drawShape(paletteCtx, y, middle+(noteSize+noteGap)/2, "square-outline");
@@ -151,7 +153,7 @@ function drawPalette() {
 				}
 			}
 		} else {
-			drawNote(paletteCtx, y, middle, {note: intToNote(i), sharp: false, octave: paletteNote.octave, sample: paletteNote.sample})
+			drawNote(paletteCtx, y, middle, {note: intToNote(i), sharp: false, octave: paletteNote.octave, synth: paletteNote.synth})
 			if (paletteNote.note === intToNote(i)) {
 				drawShape(paletteCtx, y, middle, "square-outline");
 			}
@@ -162,21 +164,21 @@ function drawPalette() {
 	y += noteSize + noteGap*2
 	let x = middle - (noteGap+noteSize)*3
 	for (let i=0; i < 7; i++) {
-		drawNote(paletteCtx, y, x+(noteGap+noteSize)*i, {note: paletteNote.note, sharp: paletteNote.sharp, octave: i, sample: paletteNote.sample})
+		drawNote(paletteCtx, y, x+(noteGap+noteSize)*i, {note: paletteNote.note, sharp: paletteNote.sharp, octave: i, synth: paletteNote.synth})
 		if (paletteNote.octave === i) {
 			drawShape(paletteCtx, y, x+(noteGap+noteSize)*i, "square-outline");
 		}
 	}
 
-	// sample palette
+	// synth palette
 	y += noteSize + noteGap*2
-	x = middle - (noteGap+noteSize)*(getSampleCount()/2-0.5)
-	let it = samples.keys();
+	x = middle - (noteGap+noteSize)*(getSynthCount()/2-0.5)
+	let it = synths.keys();
 	let val = it.next();
 	let i=0;
 	while (!val.done) {
-		drawNote(paletteCtx, y, x+(noteGap+noteSize)*i, {note: paletteNote.note, sharp: paletteNote.sharp, octave: paletteNote.octave, sample: val.value})
-		if (paletteNote.sample === val.value) {
+		drawNote(paletteCtx, y, x+(noteGap+noteSize)*i, {note: paletteNote.note, sharp: paletteNote.sharp, octave: paletteNote.octave, synth: val.value})
+		if (paletteNote.synth === val.value) {
 			drawShape(paletteCtx, y, x+(noteGap+noteSize)*i, "square-outline");
 		}
 		val  = it.next();
@@ -190,7 +192,7 @@ function drawNote(ctx, y, x, note) {
 		drawShape(ctx, y+noteSize/2, x+noteSize/2, "circle-small");
 	} else {
 		ctx.fillStyle = rgbToCSSColor(noteToColor(note)); // get note color
-		drawShape(ctx, y, x, note.sample);
+		drawShape(ctx, y, x, note.synth);
 		if (note.sharp) { // draw a white circle in the middle if the note is sharp
 			ctx.fillStyle = rgbToCSSColor(bgColor);
 			drawShape(ctx, y+noteSize/2, x+noteSize/2, "circle-small");
@@ -214,25 +216,25 @@ function drawShape(ctx, y, x, shape) {
 			ctx.arc(x, y, noteSize/6, 0, Math.PI*2);
 			ctx.fill();
 			break;
-		case "pentagon": case "chime":
-			ctx.beginPath(); // drawn clockwise from top
-			ctx.moveTo(x+noteSize/2, 		y				);
-			ctx.lineTo(x+noteSize, 			y+noteSize/4	);
-			ctx.lineTo(x+noteSize*11/13,	y+noteSize		);
-			ctx.lineTo(x+noteSize*2/13, 	y+noteSize		);
-			ctx.lineTo(x, 					y+noteSize/4	);
-			ctx.closePath();
-			ctx.fill();
-			break;
-		case "square": case "snare":
-			ctx.fillRect(x, y, noteSize, noteSize);
-			break;
-		case "circle": case "horn":
+		case "circle": case "am":
 			ctx.beginPath();
 			ctx.arc(x+noteSize/2, y+noteSize/2, noteSize/2, 0, Math.PI*2);
 			ctx.fill();
 			break;
-		case "hexagon": case "piano":
+		case "divot": case "membrane":
+			ctx.beginPath();
+			ctx.moveTo(x, y);
+			ctx.quadraticCurveTo(x+noteSize/2, y+noteSize/2, x+noteSize, y);
+			ctx.lineTo(x+noteSize, y+noteSize);
+			ctx.quadraticCurveTo(x+noteSize/2, y+noteSize/2, x, y+noteSize);
+			ctx.lineTo(x,y);
+			ctx.closePath();
+			ctx.fill();
+			break;
+		case "square": case "basic":
+			ctx.fillRect(x, y, noteSize, noteSize);
+			break;
+		case "hexagon": case "metal":
 			ctx.beginPath();
 			ctx.moveTo(x+noteSize/2	,	y				);
 			ctx.lineTo(x+noteSize	,	y+noteSize*1/4	);
@@ -243,22 +245,30 @@ function drawShape(ctx, y, x, shape) {
 			ctx.closePath();
 			ctx.fill();
 			break;
-		case "divot": case "woo":
-			ctx.beginPath();
-			ctx.moveTo(x, y);
-			ctx.quadraticCurveTo(x+noteSize/2, y+noteSize/2, x+noteSize, y);
-			ctx.lineTo(x+noteSize, y+noteSize);
-			ctx.quadraticCurveTo(x+noteSize/2, y+noteSize/2, x, y+noteSize);
-			ctx.lineTo(x,y);
+		case "pentagon": case "duo":
+			ctx.beginPath(); // drawn clockwise from top
+			ctx.moveTo(x+noteSize/2, 		y				);
+			ctx.lineTo(x+noteSize, 			y+noteSize/4	);
+			ctx.lineTo(x+noteSize*11/13,	y+noteSize		);
+			ctx.lineTo(x+noteSize*2/13, 	y+noteSize		);
+			ctx.lineTo(x, 					y+noteSize/4	);
 			ctx.closePath();
 			ctx.fill();
 			break;
 		}
 }
 
+function getCursorY() {
+	 return (cursorPosition - getCursorX()) / gridWidth;
+}
+
+function getCursorX() {
+	return cursorPosition % gridWidth;
+}
+
 function drawCursor(baseY, baseX) {
-	let gridX = cursorPosition % gridWidth;
-	let gridY = (cursorPosition - gridX) / gridWidth;
+	let gridY = getCursorY();
+	let gridX = getCursorX();
 
 	let drawX = gridX * (noteSize+noteGap) + noteGap;
 	let drawY = gridY * (noteSize+noteGap) + noteGap;
@@ -272,6 +282,10 @@ function advanceCursor() {
 	if (cursorPosition >= gridHeight*gridWidth) {
 		cursorPosition = 0;
 	}
+	let note = grid[getCursorY()][getCursorX()];
+	if (note !== undefined) {
+		getSynth(note.synth).triggerAttackRelease(note.note+(note.sharp ? "#" : "")+note.octave, "8n");
+	}
 }
 
 function getGridPixelHeight() {
@@ -283,46 +297,61 @@ function getGridPixelWidth() {
 }
 
 function getRandomNote() {
-	return {note: "CDEFGAB"[Math.floor(Math.random()*7)], sharp: Math.random()>0.5, octave: Math.floor(Math.random()*7), sample: getRandomSampleName()};
+	return {note: "CDEFGAB"[Math.floor(Math.random()*7)], sharp: Math.random()>0.5, octave: Math.floor(Math.random()*7), synth: getRandomSynthName()};
 }
 
 function randomizeGrid() {
 	for (let y=0; y<gridHeight; y++) {
 		for (let x=0; x<gridWidth; x++) {
-			grid[y][x] = getRandomNote();
+			setSound(y, x, getRandomNote());
 		}
 	}
 }
 
+function clearGrid() {
+	for (let y=0; y < gridGreatestHeight; y++) {
+		for (let x=0; x < gridGreatestWidth; x++) {
+			setSound(y, x, undefined);
+		}
+	}
+}
+
+// assumes 7x7 grid
 function makeSampleNotes() {
-	gridHeight = 7; gridWidth = 7;
 	for (let y=0; y<7; y++) {
 		for (let x=0; x<7; x++) {
-			setSound(y, x, {note: intToNote(x), sharp: Math.random()>0.5, octave: y+1, sample: getRandomSample()});
+			setSound(y, x, {note: intToNote(x), sharp: Math.random()>0.5, octave: y+1, synth: getRandomSynth()});
 		}
 	}
 }
 
 
 
-function addSample(name, filename) {
-	samples.set(name, new Audio(filename));
+function addSynth(name, synth) {
+	synths.set(name, synth);
 }
 
-function getSample(name) {
-	return samples.get(name);
+function getSynth(name) {
+	return synths.get(name);
 }
 
-function getSampleCount() {
-	return samples.size;
+function getSynthCount() {
+	return synths.size;
 }
 
-function getRandomSampleName() {
-	return samples.keys()[Math.floor(Math.random()*getSampleCount())];
+function getRandomSynthName() {
+	let keys = []
+	let it = synths.keys();
+	val = it.next();
+	while (!val.done) {
+		keys.push(val.value);
+		val = it.next();
+	}
+	return keys[Math.floor(Math.random()*getSynthCount())];
 }
 
-function getRandomSample() {
-	return getSample(getRandomSampleName());
+function getRandomSynth() {
+	return getSynth(getRandomSynthName());
 }
 
 
@@ -369,15 +398,15 @@ function generatePaletteButtons() {
 		paletteButtons.push({buttonY: y, buttonX: x+(noteGap+noteSize)*i, type: "octave", value: i});
 	}
 
-	// sample buttons
+	// synth buttons
 	y += noteSize + noteGap*2
-	x = middle - (noteGap+noteSize)*(getSampleCount()/2-0.5)
-	let it = samples.keys();
+	x = middle - (noteGap+noteSize)*(getSynthCount()/2-0.5)
+	let it = synths.keys();
 	let val = it.next();
 	let i=0;
 	
 	while (!val.done) {
-		paletteButtons.push({buttonY: y, buttonX: x+(noteGap+noteSize)*i, type: "sample", value: val.value});
+		paletteButtons.push({buttonY: y, buttonX: x+(noteGap+noteSize)*i, type: "synth", value: val.value});
 		val  = it.next();
 		i++;
 	}
@@ -389,9 +418,9 @@ function handleSequencerClick(ev) {
 		button = sequencerButtons[i]
 		if (wasButtonClicked(sequencerCanvas, ev, button)) {
 			if (selectedPaletteNote) {
-				grid[button.gridY][button.gridX] = structuredClone(paletteNote);
+				setSound(button.gridY, button.gridX, structuredClone(paletteNote));
 			} else {
-				grid[button.gridY][button.gridX] = undefined;
+				setSound(button.gridY, button.gridX, undefined);
 			}
 		}
 	}
@@ -414,8 +443,8 @@ function handlePaletteClick(ev) {
 				case "octave":
 					paletteNote.octave = button.value;
 					break;
-				case "sample":
-					paletteNote.sample = button.value;
+				case "synth":
+					paletteNote.synth = button.value;
 					break;
 				case "paint":
 					selectedPaletteNote = true;
@@ -482,14 +511,17 @@ function setup() {
 	gridGreatestHeight = gridHeight;
 	gridGreatestWidth = gridWidth;
 	
-	addSample("snare", "");
-	addSample("chime", "");
-	addSample("horn", "");
-	addSample("piano", "");
-	addSample("woo", "");
+	addSynth("basic", synthBasic);
+	addSynth("am", synthAM);
+	addSynth("metal", synthMetal);
+	addSynth("membrane", synthMembrane);
+	addSynth("duo", synthDuo);
 	
 	generateSequencerButtons();
 	generatePaletteButtons();
+	
+	gridHeightInput.value = gridHeight;
+	gridWidthInput.value = gridWidth;
 	
 	sequencerCanvas.addEventListener("click", handleSequencerClick);
 	paletteCanvas.addEventListener("click", handlePaletteClick);

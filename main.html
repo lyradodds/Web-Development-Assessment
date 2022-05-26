@@ -11,6 +11,8 @@
     	<meta http-equiv="X-UA-Compatible" content="IE=edge">
     	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+		<script src="https://unpkg.com/tone"></script>
+		
 	</head>
 
 	<body>
@@ -22,12 +24,13 @@
 		<input type="number" id="tempoInput" name="tempoInput" value=100 min="1">
 		
 		<label for="gridHeightInput">Grid height</label>
-		<input type="number" id="gridHeightInput" name="gridHeightInput" value=7 min="1">
+		<input type="number" id="gridHeightInput" name="gridHeightInput" min="1">
 		
 		<label for="gridWidthInput">Grid width</label>
-		<input type="number" id="gridWidthInput" name="gridWidthInput" value=7 min="1">
+		<input type="number" id="gridWidthInput" name="gridWidthInput" min="1">
 		
 		<button onclick="randomizeGrid()">Randomize</button>
+		<button onclick="clearGrid()">Clear</button>
 
 	</body>
 
