@@ -1,3 +1,5 @@
+https://github.com/lyradodds/Web-Development-Assessment
+
 The brief for this assignment was to create either a non-linear hypertext story or an "interactive surface" - a web page with interactive elements (through mouse or keyboard) uses Javascript and is animated using the Canvas API.
 
 I chose to make a music sequencer, where notes displayed as coloured shapes are placed on a grid to make simple melodies. I wanted it to be intuitive to use, and more of a toy than for creating actual music, so features like recording a melody aren't as important as the interface.
